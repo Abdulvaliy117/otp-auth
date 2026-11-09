@@ -1,0 +1,44 @@
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    DATABASE_URL: postgres://otp:otp@db:5432/otp
+    REDIS_URL: redis://redis:6379/0
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  web:
+    <<: *app
+    ports:
+      - "8000:8000"
+
+  celery:
+    <<: *app
+    command: celery -A core worker -l info
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: otp
+      POSTGRES_USER: otp
+      POSTGRES_PASSWORD: otp
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U otp"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pg_data:
